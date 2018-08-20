@@ -1,4 +1,4 @@
-%% Vendored from hex_erl v0.1.0, do not edit manually
+%% Vendored from mix_hex_core v0.1.2-dev, do not edit manually
 
 -module(mix_hex_tarball).
 -export([create/2, create_docs/1, unpack/2, format_checksum/1, format_error/1]).
@@ -34,7 +34,7 @@
 %% Examples:
 %%
 %% ```
-%%     Metadata = #{<<"app">> => <<"foo">>, <<"version">> => <<"1.0.0">>},
+%%     Metadata = #{<<"name">> => <<"foo">>, <<"version">> => <<"1.0.0">>},
 %%     Files = [{"src/foo.erl", <<"-module(foo).">>}],
 %%     {ok, {Tarball, Checksum}} = mix_hex_tarball:create(Metadata, Files).
 %%     Tarball.
@@ -109,11 +109,11 @@ create_docs(Files) ->
 %%     mix_hex_tarball:unpack(Tarball, memory).
 %%     %%=> {ok,#{checksum => <<...>>,
 %%     %%=>       contents => [{"src/foo.erl",<<"-module(foo).">>}],
-%%     %%=>       metadata => #{<<"app">> => <<"foo">>, ...}}}
+%%     %%=>       metadata => #{<<"name">> => <<"foo">>, ...}}}
 %%
 %%     mix_hex_tarball:unpack(Tarball, "path/to/unpack").
 %%     %%=> {ok,#{checksum => <<...>>,
-%%     %%=>       metadata => #{<<"app">> => <<"foo">>, ...}}}
+%%     %%=>       metadata => #{<<"name">> => <<"foo">>, ...}}}
 %% '''
 -spec unpack(tarball(), memory) ->
                 {ok, #{checksum => checksum(), metadata => metadata(), contents => contents()}} |
@@ -358,27 +358,20 @@ try_updating_mtime(Path) ->
     ok.
 
 create_memory_tarball(Files) ->
-    {ok, Fd} = file:open([], [ram, read, write, binary]),
-    {ok, Tar} = mix_hex_erl_tar:init(Fd, write, fun file_op/2),
+    Path = tmp_path(),
+    {ok, Tar} = mix_hex_erl_tar:open(Path, [write]),
 
     try
-        try
-            add_files(Tar, Files)
-        after
-            ok = mix_hex_erl_tar:close(Tar)
-        end,
-
-        {ok, Size} = file:position(Fd, cur),
-        {ok, Binary} = file:pread(Fd, 0, Size),
-        Binary
+        add_files(Tar, Files)
     after
-        ok = file:close(Fd)
-    end.
+        ok = mix_hex_erl_tar:close(Tar)
+    end,
+    {ok, Tarball} = file:read_file(Path),
+    ok = file:delete(Path),
+    Tarball.
 
-file_op(write, {Fd, Data}) -> file:write(Fd, Data);
-file_op(position, {Fd, Pos}) -> file:position(Fd, Pos);
-file_op(read2, {Fd, Size}) -> file:read(Fd, Size);
-file_op(close, _Fd) -> ok.
+tmp_path() ->
+    "tmp" ++ integer_to_list(erlang:unique_integer()).
 
 add_files(Tar, Files) when is_list(Files) ->
     lists:map(fun(File) -> add_file(Tar, File) end, Files).

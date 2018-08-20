@@ -1,4 +1,4 @@
-%% Vendored from hex_erl v0.1.0, do not edit manually
+%% Vendored from mix_hex_core v0.1.2-dev, do not edit manually
 
 % Copied from https://github.com/erlang/otp/blob/OTP-20.0.1/lib/stdlib/src/erl_tar.hrl
 
