@@ -371,7 +371,7 @@ create_memory_tarball(Files) ->
     Tarball.
 
 tmp_path() ->
-    "tmp" ++ integer_to_list(erlang:unique_integer()).
+    "tmp_file".
 
 add_files(Tar, Files) when is_list(Files) ->
     lists:map(fun(File) -> add_file(Tar, File) end, Files).
