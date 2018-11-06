@@ -84,7 +84,8 @@ defmodule Hex.MixProject do
       "compile.elixir": [&unload_hex/1, "compile.elixir"],
       run: [&unload_hex/1, "run"],
       install: ["archive.build -o hex.ez", "archive.install hex.ez --force"],
-      certdata: [&certdata/1]
+      certdata: [&certdata/1],
+      docs: [&docs/1]
     ]
   end
 
@@ -131,12 +132,19 @@ defmodule Hex.MixProject do
     File.rm!(@mk_ca_bundle_cmd)
   end
 
-  defp cmd(cmd, args) do
-    {_, result} = System.cmd(cmd, args, into: IO.stream(:stdio, :line), stderr_to_stdout: true)
+  defp cmd(cmd, args, opts \\ []) do
+    opts =
+      opts
+      |> Keyword.put_new(:into, IO.stream(:stdio, :line))
+      |> Keyword.put_new(:stderr_to_stdout, true)
+
+    {output, result} = System.cmd(cmd, args, opts)
 
     if result != 0 do
       raise "Non-zero result (#{result}) from: #{cmd} #{Enum.map_join(args, " ", &inspect/1)}"
     end
+
+    output
   end
 
   defp archives_path() do
@@ -152,6 +160,28 @@ defmodule Hex.MixProject do
       Mix.Local.archive_ebin(archive)
     else
       Mix.Archive.ebin(archive)
+    end
+  end
+
+  defp docs(_) do
+    cmd("/Users/wojtek/src/elixir-lang/ex_doc/bin/ex_doc", ~w(
+      Hex #{@version}
+      _build/dev/lib/hex/ebin
+      -u https://github.com/hexpm/hex
+      -m Mix.Tasks.Hex
+      --source-ref #{git_tag() || git_head()}
+    ))
+  end
+
+  defp git_head() do
+    cmd("git", ~w(rev-parse HEAD), into: "")
+    |> String.trim()
+  end
+
+  defp git_tag() do
+    case cmd("git", ~w(tag --points-at #{git_head()}), into: "") do
+      "" -> nil
+      other -> String.trim(other)
     end
   end
 end
